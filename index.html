@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function() {
+        try {
+          var target = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
+          if (target && target.fetch) {
+            var _nativeFetch = target.fetch;
+            var _currentFetch = function() {
+              return (_nativeFetch || fetch).apply(target, arguments);
+            };
+            Object.defineProperty(target, 'fetch', {
+              get: function() {
+                return _currentFetch;
+              },
+              set: function(fn) {
+                _currentFetch = fn;
+              },
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch (e) {
+          try {
+            if (typeof window !== 'undefined' && window.fetch) {
+              var _orig = window.fetch;
+              Object.defineProperty(window, 'fetch', {
+                value: function() {
+                  return _orig.apply(window, arguments);
+                },
+                writable: true,
+                configurable: true,
+                enumerable: true
+              });
+            }
+          } catch (_) {}
+        }
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Remix AttendPro - Attendance &amp; Student Management System</title>
+    <meta name="description" content="Comprehensive mobile-first attendance, student management, fee tracking, automatic suspension, and monthly leaderboard for Sunrise Taekwondo Martial Arts Centre." />
+    <meta property="og:title" content="Remix AttendPro - Attendance &amp; Student Management System" />
+    <meta property="og:description" content="Comprehensive mobile-first attendance, student management, fee tracking, automatic suspension, and monthly leaderboard for Sunrise Taekwondo Martial Arts Centre." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        if (localStorage.getItem('attendpro_dark') === 'true') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,8 @@
+{
+  "name": "Remix AttendPro - Attendance \u0026 Student Management System",
+  "description": "Comprehensive mobile-first attendance, student management, fee tracking, automatic suspension, and monthly leaderboard for Sunrise Taekwondo Martial Arts Centre.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="iconSkyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7" />
+      <stop offset="50%" stop-color="#0EA5E9" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F0F9FF" />
+    </linearGradient>
+    <linearGradient id="iconSunGlow" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="iconBelt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="70%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="iconSoftGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0EA5E9" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Outer Rounded Shield -->
+  <rect x="5" y="5" width="110" height="110" rx="28" fill="url(#iconBg)" stroke="#BAE6FD" stroke-width="3" />
+  
+  <!-- Rising Sun Rays -->
+  <path d="M 60 18 L 60 28 M 32 30 L 39 37 M 18 60 L 28 60 M 88 30 L 81 37 M 102 60 L 92 60" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" opacity="0.9" />
+  
+  <!-- Rising Sun Semi-Circle -->
+  <path d="M 34 76 A 26 26 0 0 1 86 76 Z" fill="url(#iconSunGlow)" />
+  
+  <!-- Martial Arts Dynamic Kicking Figure -->
+  <g transform="translate(10, 8)">
+    <!-- Head -->
+    <circle cx="45" cy="35" r="6" fill="#0284C7" />
+    <!-- Torso in Dobok -->
+    <path d="M 45 42 L 55 38 L 52 56 L 41 53 Z" fill="#0284C7" />
+    <!-- High Roundhouse Kicking Leg extending upwards -->
+    <path d="M 52 44 L 64 32 L 80 18 L 84 21 L 68 38 L 54 50 Z" fill="url(#iconSkyGrad)" filter="url(#iconSoftGlow)" />
+    <!-- Foot blade -->
+    <path d="M 80 18 L 88 14 L 90 19 L 84 21 Z" fill="#0369A1" />
+    <!-- Ground Plant Leg -->
+    <path d="M 43 54 L 37 68 L 41 84 L 35 84 L 30 68 L 39 52 Z" fill="#0369A1" />
+    <!-- Guard Fist -->
+    <path d="M 44 44 L 36 48 L 31 44 L 34 40 L 41 42 Z" fill="#0284C7" />
+    <!-- Black Belt Tails with Gold Dan Stripe -->
+    <path d="M 46 54 C 38 58 31 66 26 76 C 31 71 39 66 48 60 Z" fill="url(#iconBelt)" />
+    <path d="M 48 55 C 42 63 39 72 36 80 C 40 73 45 65 50 59 Z" fill="url(#iconBelt)" />
+    <!-- Mat dynamic base curve -->
+    <path d="M 18 88 Q 50 96 82 88" stroke="#0EA5E9" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  </g>
+</svg>
