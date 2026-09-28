@@ -1,27 +1,22 @@
-import { AppState, AttendanceRecord, Batch, FeeRecord, Holiday, MonthlyReport, Settings, Student, SuspensionRecord } from '../types';
+import { AppState, AttendanceRecord, Batch, FeeRecord, Holiday, MonthlyReport, Settings, Student, SuspensionRecord, SourceAttendanceRecord, SourceAttendanceSession } from '../types';
 import { calculateAbsenceStreak, computeMonthlyStats, formatDateKey, isWorkingDay } from './attendanceMath';
 
-const STORAGE_KEY = 'attendpro_sunrise_taekwondo_pk_v4';
+const STORAGE_KEY = 'attendpro_sunrise_taekwondo_supabase_v1';
 
-export const INITIAL_BATCHES: Batch[] = [
-  { id: 'batch-tigers', name: 'Little Tigers (Beginners) - 4:00 PM', isActive: true, sortOrder: 1 },
-  { id: 'batch-cadets', name: 'Cadet Warriors (Intermediate) - 5:15 PM', isActive: true, sortOrder: 2 },
-  { id: 'batch-juniors', name: 'Junior & Senior Belts - 6:30 PM', isActive: true, sortOrder: 3 },
-  { id: 'batch-elite', name: 'Elite Sparring & Black Belts - 7:45 PM', isActive: true, sortOrder: 4 },
-];
+export const INITIAL_BATCHES: Batch[] = [];
+export const INITIAL_HOLIDAYS: Holiday[] = [];
 
 export const INITIAL_SETTINGS: Settings = {
   id: 1,
   academyName: 'Sunrise Taekwondo Martial Arts Centre',
-  logoUrl: '/logo.svg',
-  contactPhone: '+92 300 8472910',
+  contactPhone: '',
   timezone: 'Asia/Karachi',
-  weeklyOffDays: [5], // Friday is standard academy off day
+  weeklyOffDays: [5],
   suspensionThreshold: 10,
   warningThreshold: 7,
   readmissionFee: 1500,
   rewardSlots: 3,
-  rewardText: 'Master Black Belt 1-on-1 Sparring Session & Gold Medal',
+  rewardText: 'Personal training session',
   attendanceLockDays: 45,
   unlockAll: false,
   currency: 'PKR',
@@ -29,570 +24,137 @@ export const INITIAL_SETTINGS: Settings = {
   updatedAt: new Date().toISOString(),
 };
 
-export const INITIAL_HOLIDAYS: Holiday[] = [
-  { id: 'hol-1', holidayDate: '2026-03-23', title: 'Pakistan Resolution Day' },
-  { id: 'hol-2', holidayDate: '2026-08-14', title: 'Independence Day Academy Tournament' },
-  { id: 'hol-3', holidayDate: '2026-09-06', title: 'Defence Day Martial Arts Showcase' },
-];
+export function createEmptyState(): AppState {
+  return {
+    settings: { ...INITIAL_SETTINGS },
+    batches: [],
+    holidays: [],
+    students: [],
+    attendance: [],
+    feeRecords: [],
+    suspensions: [],
+    monthlyReports: [],
+    activityLogs: [],
+    sourceSessions: [],
+    sourceAttendance: [],
+  };
+}
 
-// Helper to generate seed dates for current month
-function generateInitialData(): AppState {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const currentMonthStr = `${year}-${String(month).padStart(2, '0')}-01`;
+type SupabaseStudent = {
+  id: string;
+  name: string;
+  group_id: string;
+  roll_no: string;
+  source_note: string | null;
+  review_needed: boolean;
+  created_at?: string;
+  guardian_name?: string | null;
+  guardian_phone?: string | null;
+  belt_level?: Student['belt'];
+  admission_date?: string | null;
+  monthly_fee?: number | null;
+  status?: Student['status'];
+};
 
-  const students: Student[] = [
-    {
-      id: 'stud-1',
-      fullName: 'Hamza Malik',
-      guardianName: 'Tariq Malik',
-      guardianPhone: '+92 300 5551122',
-      batchId: 'batch-elite',
-      belt: 'Black',
-      admissionDate: `${year}-01-10`,
-      monthlyFee: 5000,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-01-10T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-2',
-      fullName: 'Ayan Ahmed',
-      guardianName: 'Ahmed Raza',
-      guardianPhone: '+92 321 4443322',
-      batchId: 'batch-juniors',
-      belt: 'Red',
-      admissionDate: `${year}-02-15`,
-      monthlyFee: 4500,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-02-15T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-3',
-      fullName: 'Fatima Zahra',
-      guardianName: 'Zahid Hussain',
-      guardianPhone: '+92 333 7778899',
-      batchId: 'batch-cadets',
-      belt: 'Blue',
-      admissionDate: `${year}-02-20`,
-      monthlyFee: 4000,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-02-20T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-4',
-      fullName: 'Bilal Khan',
-      guardianName: 'Nasir Khan',
-      guardianPhone: '+92 302 9991144',
-      batchId: 'batch-tigers',
-      belt: 'Yellow',
-      admissionDate: `${year}-03-01`,
-      monthlyFee: 3500,
-      status: 'active',
-      currentAbsenceStreak: 1,
-      isDeleted: false,
-      createdAt: `${year}-03-01T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-5',
-      fullName: 'Mustafa Shoukat',
-      guardianName: 'Shoukat Ali',
-      guardianPhone: '+92 345 2226677',
-      batchId: 'batch-cadets',
-      belt: 'Green',
-      admissionDate: `${year}-03-12`,
-      monthlyFee: 4000,
-      status: 'active',
-      currentAbsenceStreak: 7, // Reached Warning Threshold (7 days!)
-      isDeleted: false,
-      createdAt: `${year}-03-12T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-6',
-      fullName: 'Omar Farooq',
-      guardianName: 'Farooq Javed',
-      guardianPhone: '+92 311 8883344',
-      batchId: 'batch-juniors',
-      belt: 'Blue',
-      admissionDate: `${year}-01-05`,
-      monthlyFee: 4500,
-      status: 'suspended', // Suspended student with 10 absences
-      currentAbsenceStreak: 10,
-      isDeleted: false,
-      createdAt: `${year}-01-05T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-7',
-      fullName: 'Emaan Tariq',
-      guardianName: 'Tariq Mehmood',
-      guardianPhone: '+92 300 1114455',
-      batchId: 'batch-tigers',
-      belt: 'White',
-      admissionDate: `${year}-04-01`,
-      monthlyFee: 3500,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-04-01T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-8',
-      fullName: 'Zainab Hussain',
-      guardianName: 'Altaf Hussain',
-      guardianPhone: '+92 322 3338877',
-      batchId: 'batch-elite',
-      belt: 'Black',
-      admissionDate: `${year}-01-22`,
-      monthlyFee: 5000,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-01-22T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-9',
-      fullName: 'Usman Javed',
-      guardianName: 'Javed Iqbal',
-      guardianPhone: '+92 303 6665544',
-      batchId: 'batch-cadets',
-      belt: 'Green',
-      admissionDate: `${year}-03-25`,
-      monthlyFee: 4000,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-03-25T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-10',
-      fullName: 'Hassan Raza',
-      guardianName: 'Raza Ali',
-      guardianPhone: '+92 334 7772211',
-      batchId: 'batch-juniors',
-      belt: 'Blue',
-      admissionDate: `${year}-02-18`,
-      monthlyFee: 4500,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-02-18T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-11',
-      fullName: 'Maryam Noor',
-      guardianName: 'Noor Alam',
-      guardianPhone: '+92 300 4448899',
-      batchId: 'batch-tigers',
-      belt: 'White',
-      admissionDate: `${year}-04-05`,
-      monthlyFee: 3500,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-04-05T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-12',
-      fullName: 'Saad Qureshi',
-      guardianName: 'Asim Qureshi',
-      guardianPhone: '+92 321 9992233',
-      batchId: 'batch-elite',
-      belt: 'Red',
-      admissionDate: `${year}-01-14`,
-      monthlyFee: 5000,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-01-14T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-13',
-      fullName: 'Ibrahim Shah',
-      guardianName: 'Waqar Shah',
-      guardianPhone: '+92 346 5554433',
-      batchId: 'batch-cadets',
-      belt: 'Yellow',
-      admissionDate: `${year}-03-08`,
-      monthlyFee: 4000,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-03-08T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-14',
-      fullName: 'Ayesha Siddiqui',
-      guardianName: 'Adnan Siddiqui',
-      guardianPhone: '+92 333 1119922',
-      batchId: 'batch-juniors',
-      belt: 'Yellow',
-      admissionDate: `${year}-02-11`,
-      monthlyFee: 4500,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-02-11T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-15',
-      fullName: 'Daniyal Baig',
-      guardianName: 'Kamran Baig',
-      guardianPhone: '+92 301 8887766',
-      batchId: 'batch-cadets',
-      belt: 'White',
-      admissionDate: `${year}-03-19`,
-      monthlyFee: 4000,
-      status: 'active',
-      currentAbsenceStreak: 8, // Exceeded 7-day warning
-      isDeleted: false,
-      createdAt: `${year}-03-19T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'stud-16',
-      fullName: 'Rayyan Butt',
-      guardianName: 'Zubair Butt',
-      guardianPhone: '+92 312 4445566',
-      batchId: 'batch-tigers',
-      belt: 'White',
-      admissionDate: `${year}-04-12`,
-      monthlyFee: 3500,
-      status: 'active',
-      currentAbsenceStreak: 0,
-      isDeleted: false,
-      createdAt: `${year}-04-12T10:00:00Z`,
-      updatedAt: new Date().toISOString(),
-    },
-  ];
+type SupabaseSession = { id: string; session_key: string; session_date: string | null };
+type SupabaseAttendance = {
+  id: string;
+  student_id: string;
+  session_id: string;
+  status: 'present' | 'absent' | 'late' | 'leave' | 'not_recorded';
+  note?: string | null;
+  attendance_sessions: SupabaseSession | SupabaseSession[] | null;
+};
 
-  // Generate attendance records for past working days of this month
-  const attendance: AttendanceRecord[] = [];
-  const currentDay = now.getDate();
+export function mapSupabaseState(payload: { students: SupabaseStudent[]; attendance: SupabaseAttendance[] }): AppState {
+  const state = createEmptyState();
+  const groups = [...new Set(payload.students.map((student) => student.group_id))].sort();
+  state.batches = groups.map((groupId, index) => ({
+    id: groupId,
+    name: `Group ${groupId}`,
+    isActive: true,
+    sortOrder: index + 1,
+  }));
+  state.students = payload.students.map((student) => ({
+    id: student.id,
+    fullName: student.name,
+    guardianName: student.guardian_name ?? '',
+    guardianPhone: student.guardian_phone ?? '',
+    batchId: student.group_id,
+    belt: student.belt_level ?? undefined,
+    admissionDate: student.admission_date ?? '',
+    monthlyFee: Number(student.monthly_fee ?? 0),
+    status: student.status ?? 'active',
+    currentAbsenceStreak: 0,
+    isDeleted: false,
+    createdAt: student.created_at ?? '',
+    updatedAt: student.created_at ?? '',
+    rollNo: student.roll_no,
+    sourceNote: student.source_note ?? undefined,
+    reviewNeeded: student.review_needed,
+    sourceImported: true,
+  }));
 
-  for (let d = 1; d <= currentDay; d++) {
-    const dayDate = new Date(year, month - 1, d);
-    const dateStr = formatDateKey(dayDate);
-    const dayOfWeek = dayDate.getDay();
-
-    // Skip weekly off days and holidays dynamically based on academy settings
-    if (!isWorkingDay(dateStr, INITIAL_SETTINGS, INITIAL_HOLIDAYS)) {
-      continue;
-    }
-
-    students.forEach((student) => {
-      let status: 'present' | 'absent' | 'late' | 'leave' = 'present';
-
-      if (student.id === 'stud-1') {
-        status = 'present'; // 100% Star candidate
-      } else if (student.id === 'stud-2') {
-        status = d === 4 ? 'late' : 'present';
-      } else if (student.id === 'stud-3') {
-        status = d === 8 ? 'leave' : 'present';
-      } else if (student.id === 'stud-4') {
-        status = d === currentDay ? 'absent' : d % 6 === 0 ? 'late' : 'present';
-      } else if (student.id === 'stud-5') {
-        // Bilal Mustafa: absent for recent working days to yield streak 7
-        status = 'absent';
-      } else if (student.id === 'stud-6') {
-        // Omar Khalid: continuously absent
-        status = 'absent';
-      } else {
-        status = (student.id.charCodeAt(5) + d) % 9 === 0 ? 'absent' : 'present';
-      }
-
-      attendance.push({
-        id: `att-${student.id}-${dateStr}`,
-        studentId: student.id,
-        attendanceDate: dateStr,
-        status,
-        markedAt: `${dateStr}T16:00:00Z`,
-      });
+  const sessionsByKey = new Map<string, SourceAttendanceSession>();
+  const sessionById = new Map<string, SupabaseSession>();
+  for (const row of payload.attendance) {
+    const relation = Array.isArray(row.attendance_sessions) ? row.attendance_sessions[0] : row.attendance_sessions;
+    if (!relation) continue;
+    sessionById.set(row.session_id, relation);
+    sessionsByKey.set(relation.session_key, {
+      id: relation.id,
+      sessionKey: relation.session_key,
+      sessionDate: relation.session_date,
     });
   }
-
-  const feeRecords: FeeRecord[] = [
-    {
-      id: 'fee-1',
-      studentId: 'stud-1',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 5000,
-      amountPaid: 5000,
-      status: 'paid',
-      method: 'bank',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-02T09:00:00Z`,
-      note: 'Transferred via Meezan Bank',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-2',
-      studentId: 'stud-2',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 4500,
-      amountPaid: 4500,
-      status: 'paid',
-      method: 'cash',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-03T17:30:00Z`,
-      note: 'Paid cash at academy counter',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-3',
-      studentId: 'stud-3',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 4000,
-      amountPaid: 2500,
-      status: 'partial',
-      method: 'cash',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-05T18:00:00Z`,
-      note: 'Remaining balance Rs. 1,500 due next week',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-4',
-      studentId: 'stud-4',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 3500,
-      amountPaid: 0,
-      status: 'unpaid', // Defaulter flag
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-5',
-      studentId: 'stud-5',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 4000,
-      amountPaid: 0,
-      status: 'unpaid',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-7',
-      studentId: 'stud-7',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 3500,
-      amountPaid: 3500,
-      status: 'paid',
-      method: 'online',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-04T12:00:00Z`,
-      note: 'JazzCash payment receipt #88129',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-8',
-      studentId: 'stud-8',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 5000,
-      amountPaid: 5000,
-      status: 'paid',
-      method: 'cash',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-01T15:00:00Z`,
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-9',
-      studentId: 'stud-9',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 4000,
-      amountPaid: 0,
-      status: 'unpaid',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-11',
-      studentId: 'stud-11',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 3500,
-      amountPaid: 3500,
-      status: 'paid',
-      method: 'cash',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-02T16:00:00Z`,
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-12',
-      studentId: 'stud-12',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 5000,
-      amountPaid: 2500,
-      status: 'partial',
-      method: 'bank',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-05T11:00:00Z`,
-      note: 'Partial installment, 2nd half due on 20th',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-13',
-      studentId: 'stud-13',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 4000,
-      amountPaid: 4000,
-      status: 'paid',
-      method: 'online',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-01T14:30:00Z`,
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-14',
-      studentId: 'stud-14',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 4500,
-      amountPaid: 0,
-      status: 'unpaid',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-15',
-      studentId: 'stud-15',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 4000,
-      amountPaid: 0,
-      status: 'unpaid',
-      createdAt: currentMonthStr,
-    },
-    {
-      id: 'fee-16',
-      studentId: 'stud-16',
-      feeMonth: currentMonthStr,
-      feeType: 'monthly',
-      amountDue: 3500,
-      amountPaid: 3500,
-      status: 'paid',
-      method: 'cash',
-      paidAt: `${year}-${String(month).padStart(2, '0')}-03T18:00:00Z`,
-      createdAt: currentMonthStr,
-    },
-  ];
-
-  const suspensions: SuspensionRecord[] = [
-    {
-      id: 'susp-1',
-      studentId: 'stud-6',
-      suspendedOn: `${year}-${String(month).padStart(2, '0')}-12`,
-      streakAtSuspension: 10,
-      reason: 'Automated: 10 consecutive working-day absences without approved leave',
-    },
-  ];
-
-  const monthlyReports: MonthlyReport[] = [];
-
-  const activityLogs = [
-    {
-      id: 'log-1',
-      action: 'system_initialized',
-      entity: 'system',
-      details: { academy: 'Sunrise Taekwondo Martial Arts Centre' },
-      createdAt: new Date().toISOString(),
-    },
-  ];
-
-  return {
-    settings: INITIAL_SETTINGS,
-    batches: INITIAL_BATCHES,
-    holidays: INITIAL_HOLIDAYS,
-    students,
-    attendance,
-    feeRecords,
-    suspensions,
-    monthlyReports,
-    activityLogs,
-  };
+  state.sourceSessions = [...sessionsByKey.values()].sort((a, b) => {
+    const aIndex = Number(a.sessionKey.match(/\d+$/)?.[0] ?? 0);
+    const bIndex = Number(b.sessionKey.match(/\d+$/)?.[0] ?? 0);
+    return aIndex - bIndex || a.sessionKey.localeCompare(b.sessionKey);
+  });
+  state.sourceAttendance = payload.attendance.flatMap((row): SourceAttendanceRecord[] => {
+    const session = sessionById.get(row.session_id);
+    if (!session) return [];
+    if (session.session_date && session.session_key.startsWith('daily_') && row.status !== 'not_recorded') {
+      state.attendance.push({
+        id: row.id,
+        studentId: row.student_id,
+        attendanceDate: session.session_date,
+        status: row.status as 'present' | 'absent' | 'late' | 'leave',
+        note: row.note ?? undefined,
+        markedAt: '',
+      });
+    }
+    return [{
+      id: row.id,
+      studentId: row.student_id,
+      sessionKey: session.session_key,
+      status: row.status === 'late' || row.status === 'leave' ? 'present' : row.status,
+    }];
+  });
+  return state;
 }
 
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed: AppState = JSON.parse(raw);
-      if (parsed && parsed.students && parsed.settings) {
-        // Ensure belt rank exists on every student
-        const defaultBelts = ['White', 'Yellow', 'Green', 'Blue', 'Red', 'Black'] as const;
-        parsed.students = parsed.students.map((s, idx) => ({
-          ...s,
-          belt: s.belt || defaultBelts[idx % defaultBelts.length],
-        }));
-
-        // Ensure batches have sortOrder
-        if (parsed.batches) {
-          parsed.batches = parsed.batches.map((b, idx) => ({
-            ...b,
-            sortOrder: b.sortOrder !== undefined ? b.sortOrder : idx + 1,
-          }));
-        }
-
-        // Ensure Pakistan currency
-        if (!parsed.settings.currency) {
-          parsed.settings.currency = 'PKR';
-          parsed.settings.currencySymbol = 'Rs.';
-        }
-
-        return parsed;
-      }
+      const parsed = JSON.parse(raw) as AppState;
+      if (parsed?.students && parsed?.settings) return parsed;
     }
-  } catch (e) {
-    console.error('Failed to load state from localStorage:', e);
+  } catch (error) {
+    console.error('Failed to load cached Supabase state:', error);
   }
-
-  const initial = generateInitialData();
-  saveState(initial);
-  return initial;
+  return createEmptyState();
 }
 
 export function saveState(state: AppState): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.error('Failed to save state to localStorage:', e);
+  } catch (error) {
+    console.error('Failed to cache Supabase state:', error);
   }
 }
-
-export function resetToRichDemoData(): AppState {
-  const fresh = generateInitialData();
-  saveState(fresh);
-  return fresh;
-}
-
-export function resetToInitialData(): AppState {
-  const initial = generateInitialData();
-  saveState(initial);
-  return initial;
-}
-
-/**
- * Upsert attendance marks for a date and update student absence streaks automatically
- */
 export function markAttendance(
   attendanceDate: string,
   records: { studentId: string; status: 'present' | 'absent' | 'late' | 'leave'; note?: string }[]
@@ -802,7 +364,7 @@ export function generateMonthlyFeeRecords(yearOrDateStr: number | string, monthN
   let createdCount = 0;
 
   state.students.forEach((student) => {
-    if (student.status === 'active' && !student.isDeleted) {
+    if (student.status === 'active' && !student.isDeleted && !student.sourceImported) {
       const exists = state.feeRecords.some(
         (f) => f.studentId === student.id && f.feeMonth === feeMonth && f.feeType === 'monthly'
       );
@@ -872,7 +434,7 @@ export function closeMonth(year: number, month: number): { reportsGenerated: num
 
   // Auto-create fee records for next month
   state.students.forEach((student) => {
-    if (student.status === 'active' && !student.isDeleted) {
+    if (student.status === 'active' && !student.isDeleted && !student.sourceImported) {
       const hasFee = state.feeRecords.some(
         (f) => f.studentId === student.id && f.feeMonth === nextMonthStr && f.feeType === 'monthly'
       );

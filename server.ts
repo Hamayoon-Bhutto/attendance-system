@@ -6,9 +6,37 @@ import { GoogleGenAI } from '@google/genai';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
 
 app.use(express.json({ limit: '10mb' }));
+
+// Supabase credentials stay on the server; the browser only calls this endpoint.
+app.get('/api/dashboard-data', async (_req, res) => {
+  const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) {
+    return res.status(503).json({ error: 'Supabase server configuration is missing.' });
+  }
+
+  const query = async (table: string, select: string) => {
+    const response = await fetch(`${supabaseUrl}/rest/v1/${table}?${select}`, {
+      headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
+    });
+    if (!response.ok) throw new Error(`Supabase query failed (${response.status}).`);
+    return response.json();
+  };
+
+  try {
+    const [students, attendance] = await Promise.all([
+      query('students', 'select=*&order=name.asc'),
+      query('attendance', 'select=*,attendance_sessions!inner(id,session_key,session_date)&order=session_id.asc'),
+    ]);
+    return res.json({ students, attendance });
+  } catch (error) {
+    console.error('Failed to load dashboard data from Supabase:', error);
+    return res.status(502).json({ error: 'Could not load attendance data from Supabase.' });
+  }
+});
 
 // Lazy initialization of Gemini client
 let aiClient: GoogleGenAI | null = null;

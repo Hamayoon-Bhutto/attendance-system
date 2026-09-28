@@ -37,6 +37,24 @@ export interface Student {
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Fields preserved from the supplied source sheet. */
+  rollNo?: string;
+  sourceNote?: string;
+  reviewNeeded?: boolean;
+  sourceImported?: boolean;
+}
+
+export interface SourceAttendanceSession {
+  id: string;
+  sessionKey: string;
+  sessionDate: string | null;
+}
+
+export interface SourceAttendanceRecord {
+  id: string;
+  studentId: string;
+  sessionKey: string;
+  status: 'present' | 'absent' | 'not_recorded';
 }
 
 export interface AttendanceRecord {
@@ -125,4 +143,6 @@ export interface AppState {
   suspensions: SuspensionRecord[];
   monthlyReports: MonthlyReport[];
   activityLogs: ActivityLog[];
+  sourceSessions: SourceAttendanceSession[];
+  sourceAttendance: SourceAttendanceRecord[];
 }

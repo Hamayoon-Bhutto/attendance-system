@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppState, Batch, FeeRecord, Holiday, Settings, Student } from './types';
 import {
+  createEmptyState,
   loadState,
+  mapSupabaseState,
   saveState,
   readmitStudent,
   recordFeePayment,
   softDeleteStudent,
-  resetToInitialData,
-  resetToRichDemoData
 } from './lib/storage';
 import { formatDateKey } from './lib/attendanceMath';
 import { exportAllDataExcel } from './lib/exportExcel';
@@ -35,7 +35,9 @@ interface Toast {
 }
 
 export default function App() {
-  const [state, setState] = useState<AppState>(() => loadState());
+  const [state, setState] = useState<AppState>(() => createEmptyState());
+  const [dataReady, setDataReady] = useState(false);
+  const [dataError, setDataError] = useState('');
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('attendpro_dark') === 'true';
@@ -72,6 +74,29 @@ export default function App() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/dashboard-data')
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || 'Could not load the Supabase roster.');
+        return body;
+      })
+      .then((payload) => {
+        if (!active) return;
+        const remoteState = mapSupabaseState(payload);
+        saveState(remoteState);
+        setState(remoteState);
+        setDataReady(true);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setDataError(error instanceof Error ? error.message : 'Could not load the Supabase roster.');
+        setDataReady(true);
+      });
+    return () => { active = false; };
   }, []);
 
   const handleSelectTab = (tab: string) => {
@@ -258,24 +283,6 @@ export default function App() {
     setState(nextState);
   };
 
-  // Reset to Demo Data
-  const handleResetData = () => {
-    if (confirm('Are you sure you want to reset all data back to the Sunrise Taekwondo sample dataset?')) {
-      const fresh = resetToInitialData();
-      setState(fresh);
-      showToast('Database reset to sample academy data!', 'success');
-    }
-  };
-
-  // Load Full Rich Demo Data (16 students, full logs)
-  const handleLoadRichData = () => {
-    if (confirm('Load the full rich dataset with 16 students across all belt levels, attendance, and fees?')) {
-      const fresh = resetToRichDemoData();
-      setState(fresh);
-      showToast('Loaded full rich dummy dataset (16 students, 4 batches)!', 'success');
-    }
-  };
-
   // Student profile select
   const handleSelectStudent = (studentId: string) => {
     const s = state.students.find((stu) => stu.id === studentId) || null;
@@ -325,6 +332,17 @@ export default function App() {
 
         {/* Main Container - max-w-[1600px] to utilize wide screens without cramped narrow layout */}
         <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-12">
+        {!dataReady && (
+          <div className="mb-5 rounded-2xl border border-sky-200 bg-white p-4 text-sm font-semibold text-sky-800 shadow-xs">
+            Connecting to Supabase and loading the original roster…
+          </div>
+        )}
+        {dataError && (
+          <div role="alert" className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
+            {dataError} The dashboard is showing no student data until the database connection is available.
+            <button className="ml-3 underline" onClick={() => window.location.reload()}>Retry</button>
+          </div>
+        )}
         {activeTab === 'dashboard' && (
           <DashboardPage
             state={state}
@@ -417,8 +435,6 @@ export default function App() {
             onDeleteBatch={handleDeleteBatch}
             onReorderBatches={handleReorderBatches}
             onExportAll={handleExportAll}
-            onResetData={handleResetData}
-            onLoadRichData={handleLoadRichData}
             showToast={showToast}
           />
         )}

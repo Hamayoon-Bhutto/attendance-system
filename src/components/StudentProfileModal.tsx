@@ -148,7 +148,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-xl font-bold tracking-tight text-white">{student.fullName}</h2>
                   {/* Taekwondo Belt Badge */}
-                  {(() => {
+                  {!student.sourceImported && (() => {
                     const beltMeta = getBeltMeta(student.beltLevel || student.belt);
                     return (
                       <span className={`inline-flex items-center space-x-1.5 text-[11px] font-black px-2.5 py-0.5 rounded-full ${beltMeta.chipClass}`}>
@@ -166,7 +166,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
                         : 'bg-slate-500/20 text-slate-300'
                     }`}
                   >
-                    {student.status}
+                    {student.sourceImported ? 'Roster' : student.status}
                   </span>
                   {hasUnpaidFee && (
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500/30 text-red-200 border border-red-400/40">

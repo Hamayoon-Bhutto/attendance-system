@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  AlertTriangle,
   ArrowDown,
   ArrowUp,
   Building,
@@ -16,7 +15,6 @@ import {
   Layers,
   Lock,
   Plus,
-  RotateCcw,
   Save,
   Shield,
   Trash2,
@@ -37,8 +35,6 @@ interface SettingsPageProps {
   onDeleteBatch: (batchId: string) => void;
   onReorderBatches?: (reorderedBatches: Batch[]) => void;
   onExportAll: () => void;
-  onResetData: () => void;
-  onLoadRichData?: () => void;
   showToast: (msg: string, type?: 'success' | 'error' | 'warning') => void;
 }
 
@@ -51,8 +47,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onDeleteBatch,
   onReorderBatches,
   onExportAll,
-  onResetData,
-  onLoadRichData,
   showToast,
 }) => {
   const [settings, setSettings] = useState<Settings>({ ...state.settings });
@@ -771,7 +765,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               Database Export & Backup
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Download all student records, daily attendance, fee logs, and suspensions into an Excel workbook.
+              Download the student and attendance data currently available from Supabase.
             </p>
             <button
               onClick={onExportAll}
@@ -782,42 +776,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </button>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
-            <div className="space-y-2">
-              <h3 className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
-                <Database className="w-4 h-4 text-sky-600" />
-                <span>Rich Martial Arts Dataset (Recommended for Demo)</span>
-              </h3>
-              <p className="text-xs text-slate-500">
-                Populates 16 martial arts students across White, Yellow, Green, Blue, Red, and Black belts, sorted batches, daily attendance records for the month, PKR fee records, and 1 suspended student.
-              </p>
-              {onLoadRichData && (
-                <button
-                  onClick={onLoadRichData}
-                  className="px-4 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/80 hover:bg-sky-100 dark:hover:bg-sky-900/60 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-4 h-4 text-sky-600" />
-                  <span>Load Full 16-Student Martial Arts Dataset</span>
-                </button>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
-              <h3 className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4" />
-                <span>Reset Demo State</span>
-              </h3>
-              <p className="text-xs text-slate-500">
-                Reset the academy data back to standard demo state with core sample students and records.
-              </p>
-              <button
-                onClick={onResetData}
-                className="px-4 py-2 rounded-xl border border-red-300 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 text-red-600 dark:text-red-400 font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Reset to Standard Sample Data</span>
-              </button>
-            </div>
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
+            The dashboard no longer seeds or restores sample student records.
           </div>
         </div>
       )}

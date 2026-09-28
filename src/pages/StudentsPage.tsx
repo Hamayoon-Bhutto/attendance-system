@@ -98,7 +98,7 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
       }
 
       // Taekwondo Belt filter
-      if (beltFilter !== 'all' && (student.beltLevel || student.belt || 'White') !== beltFilter) {
+      if (beltFilter !== 'all' && (student.beltLevel || student.belt) !== beltFilter) {
         return false;
       }
 
@@ -127,9 +127,10 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
 
   // Taekwondo Belt distribution counts
   const beltStats = useMemo(() => {
+    const knownBeltStudents = activeStudents.filter((s) => s.beltLevel || s.belt);
     return TAEKWONDO_BELTS.map((belt) => {
-      const count = activeStudents.filter((s) => (s.beltLevel || s.belt || 'White') === belt.id).length;
-      const percentage = activeStudents.length > 0 ? Math.round((count / activeStudents.length) * 100) : 0;
+      const count = knownBeltStudents.filter((s) => (s.beltLevel || s.belt) === belt.id).length;
+      const percentage = knownBeltStudents.length > 0 ? Math.round((count / knownBeltStudents.length) * 100) : 0;
       return {
         ...belt,
         count,
@@ -523,10 +524,10 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
 
                   <div className="flex flex-col items-end gap-1">
                     {/* Taekwondo Belt Badge */}
-                    <span className={`inline-flex items-center space-x-1 text-[10px] font-black px-2 py-0.5 rounded-full ${beltMeta.chipClass}`}>
+                    {!student.sourceImported && <span className={`inline-flex items-center space-x-1 text-[10px] font-black px-2 py-0.5 rounded-full ${beltMeta.chipClass}`}>
                       <span className={`w-2 h-2 rounded-full border ${beltMeta.borderColor} ${beltMeta.bgColor}`} />
                       <span>{beltMeta.name}</span>
-                    </span>
+                    </span>}
 
                     <span
                       className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded-full ${
@@ -537,7 +538,7 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600'
                       }`}
                     >
-                      {student.status}
+                      {student.sourceImported ? 'Roster' : student.status}
                     </span>
 
                     {isUnpaid && (
@@ -550,6 +551,12 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
 
                 {/* Details list */}
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 py-2 border-t border-sky-50 dark:border-slate-800">
+                  {student.sourceImported ? <>
+                    <div className="flex justify-between"><span className="text-slate-400">Group:</span><span className="font-semibold">{student.batchId}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Roll number:</span><span className="font-semibold">{student.rollNo}</span></div>
+                    {student.sourceNote && <p className="text-amber-700 dark:text-amber-300">Source note: {student.sourceNote}</p>}
+                    {student.reviewNeeded && <p className="font-bold text-amber-700 dark:text-amber-300">This source row needs review.</p>}
+                  </> : <>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Guardian:</span>
                     <span className="font-semibold">{student.guardianName || 'N/A'}</span>
@@ -583,13 +590,14 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
                       {student.currentAbsenceStreak} days
                     </span>
                   </div>
+                  </>}
                 </div>
               </div>
 
               {/* Action Buttons Footer */}
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 mt-3 flex items-center justify-between">
                 <div className="flex items-center space-x-1.5">
-                  <a
+                  {student.guardianPhone && <a
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -597,14 +605,14 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
                     className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 transition-colors"
                   >
                     <MessageCircle className="w-4 h-4" />
-                  </a>
-                  <a
+                  </a>}
+                  {student.guardianPhone && <a
                     href={`tel:${student.guardianPhone}`}
                     title="Call Guardian"
                     className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition-colors"
                   >
                     <Phone className="w-4 h-4" />
-                  </a>
+                  </a>}
                   <button
                     onClick={() => onEditStudent(student)}
                     title="Edit Student Profile & Belt"

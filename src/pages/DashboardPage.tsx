@@ -114,13 +114,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
     return STANDARD_BELTS.map((level) => {
       // Query student list to count active students by their beltLevel
-      const count = activeStudents.filter((s) => {
-        const studentBelt = s.beltLevel || s.belt || 'White';
+      const studentsWithBelt = activeStudents.filter((s) => s.beltLevel || s.belt);
+      const count = studentsWithBelt.filter((s) => {
+        const studentBelt = s.beltLevel || s.belt;
         return studentBelt === level;
       }).length;
 
       const meta = TAEKWONDO_BELTS.find((b) => b.id === level);
-      const percentage = activeStudents.length > 0 ? Math.round((count / activeStudents.length) * 100) : 0;
+      const percentage = studentsWithBelt.length > 0 ? Math.round((count / studentsWithBelt.length) * 100) : 0;
 
       return {
         beltLevel: level,
@@ -294,6 +295,44 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
         </div>
       </div>
+
+      {state.sourceSessions.length > 0 && (
+        <section className="rounded-2xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="text-base font-black text-slate-900 dark:text-white">Imported Attendance Records</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Original roster and session marks from Supabase. Session dates were not included in the source sheet.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {state.sourceSessions.map((session) => {
+                const records = state.sourceAttendance.filter((record) => record.sessionKey === session.sessionKey);
+                const present = records.filter((record) => record.status === 'present').length;
+                const absent = records.filter((record) => record.status === 'absent').length;
+                return <span key={session.id} className="rounded-lg bg-sky-50 dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                  {session.sessionKey.replace('_', ' ')}: <span className="text-emerald-700">{present} present</span> · <span className="text-red-600">{absent} absent</span>
+                </span>;
+              })}
+            </div>
+          </div>
+          <div className="overflow-x-auto max-h-[520px]">
+            <table className="w-full min-w-[760px] text-left text-xs">
+              <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 uppercase tracking-wide">
+                <tr><th className="px-4 py-3">Student</th><th className="px-4 py-3">Group</th><th className="px-4 py-3">Roll</th>{state.sourceSessions.map((session) => <th key={session.id} className="px-4 py-3">{session.sessionKey.replace('_', ' ')}</th>)}</tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {state.students.filter((student) => !student.isDeleted).map((student) => (
+                  <tr key={student.id} className="text-slate-700 dark:text-slate-200">
+                    <td className="px-4 py-2.5 font-semibold">{student.fullName}{student.reviewNeeded && <span title={student.sourceNote || 'Source row needs review'} className="ml-2 text-amber-600">Review</span>}</td>
+                    <td className="px-4 py-2.5">{student.batchId}</td><td className="px-4 py-2.5">{student.rollNo}</td>
+                    {state.sourceSessions.map((session) => {
+                      const status = state.sourceAttendance.find((record) => record.studentId === student.id && record.sessionKey === session.sessionKey)?.status ?? 'not_recorded';
+                      return <td key={session.id} className={`px-4 py-2.5 font-bold ${status === 'present' ? 'text-emerald-700' : status === 'absent' ? 'text-red-600' : 'text-slate-400'}`}>{status.replace('_', ' ')}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* 4 Core Stat Metric Cards (Responsive Grid) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
