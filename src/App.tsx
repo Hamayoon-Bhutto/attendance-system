@@ -80,8 +80,18 @@ export default function App() {
     let active = true;
     fetch('/api/dashboard-data')
       .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          if (response.status === 404) {
+            throw new Error('The dashboard API is not deployed. Redeploy the latest Vercel project revision.');
+          }
+          throw new Error(`The dashboard API returned an unexpected response (${response.status}).`);
+        }
+        const body = await response.json();
         if (!response.ok) throw new Error(body.error || 'Could not load the Supabase roster.');
+        if (!Array.isArray(body.students) || !Array.isArray(body.attendance)) {
+          throw new Error('The dashboard API response is missing roster or attendance data.');
+        }
         return body;
       })
       .then((payload) => {
