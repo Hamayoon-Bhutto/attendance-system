@@ -38,6 +38,56 @@ app.get('/api/dashboard-data', async (_req, res) => {
   }
 });
 
+app.post('/api/students', async (req, res) => {
+  const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) {
+    return res.status(503).json({ error: 'Supabase server configuration is missing.' });
+  }
+  const { fullName, guardianName, guardianPhone, batchId, beltLevel, monthlyFee, admissionDate, photoUrl, status } = req.body ?? {};
+  const name = typeof fullName === 'string' ? fullName.trim() : '';
+  const groupId = typeof batchId === 'string' ? batchId.replace(/^Group\s+/i, '').trim() : '';
+  if (!name || !groupId || !guardianPhone || !admissionDate || !['White', 'Yellow', 'Green', 'Blue', 'Red', 'Black'].includes(beltLevel) || !['active', 'suspended', 'left'].includes(status) || !Number.isFinite(Number(monthlyFee)) || Number(monthlyFee) < 0) {
+    return res.status(400).json({ error: 'Please provide a valid name, group, guardian phone, belt, admission date, fee, and status.' });
+  }
+  const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' };
+  try {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const rosterResponse = await fetch(`${supabaseUrl}/rest/v1/students?select=roll_no&group_id=eq.${encodeURIComponent(groupId)}`, { headers });
+      if (!rosterResponse.ok) throw new Error(`Could not check the roster (${rosterResponse.status}).`);
+      const roster = await rosterResponse.json() as Array<{ roll_no: string }>;
+      const rollNo = String(roster.reduce((max, row) => Math.max(max, Number(row.roll_no) || 0), 0) + 1);
+      const insertResponse = await fetch(`${supabaseUrl}/rest/v1/students`, {
+        method: 'POST',
+        headers: { ...headers, Prefer: 'return=representation' },
+        body: JSON.stringify({ group_id: groupId, roll_no: rollNo, name, guardian_name: String(guardianName ?? '').trim(), guardian_phone: String(guardianPhone).trim(), belt_level: beltLevel, admission_date: admissionDate, monthly_fee: Number(monthlyFee), status, photo_url: photoUrl || null, source_imported: false, updated_at: new Date().toISOString() }),
+      });
+      let savedResponse = insertResponse;
+      let insertDetail = '';
+      if (!insertResponse.ok) insertDetail = await insertResponse.text();
+      if (!insertResponse.ok && insertResponse.status === 400 && /column .* does not exist|schema cache/i.test(insertDetail)) {
+        savedResponse = await fetch(`${supabaseUrl}/rest/v1/students`, {
+          method: 'POST',
+          headers: { ...headers, Prefer: 'return=representation' },
+          body: JSON.stringify({ group_id: groupId, roll_no: rollNo, name, review_needed: false, source_note: `@attendpro-profile:${JSON.stringify({ guardianName: guardianName ?? '', guardianPhone: String(guardianPhone).trim(), beltLevel, admissionDate, monthlyFee: Number(monthlyFee), status, photoUrl: photoUrl || null })}` }),
+        });
+        if (!savedResponse.ok) insertDetail = await savedResponse.text();
+      }
+      if (savedResponse.ok) {
+        const [student] = await savedResponse.json() as Array<Record<string, unknown>>;
+        return res.status(201).json({ student });
+      }
+      if (savedResponse.status === 409 && attempt < 4) continue;
+      console.error('Supabase student insert failed:', savedResponse.status, insertDetail);
+      return res.status(502).json({ error: `Supabase could not save this student (${savedResponse.status}).` });
+    }
+    return res.status(409).json({ error: 'Could not allocate a unique roll number. Please retry.' });
+  } catch (error) {
+    console.error('Failed to save student to Supabase:', error);
+    return res.status(500).json({ error: 'Could not save the student to Supabase.' });
+  }
+});
+
 // Lazy initialization of Gemini client
 let aiClient: GoogleGenAI | null = null;
 function getAIClient(): GoogleGenAI {

@@ -54,6 +54,10 @@ type SupabaseStudent = {
   admission_date?: string | null;
   monthly_fee?: number | null;
   status?: Student['status'];
+  photo_url?: string | null;
+  is_deleted?: boolean;
+  source_imported?: boolean;
+  updated_at?: string;
 };
 
 type SupabaseSession = { id: string; session_key: string; session_date: string | null };
@@ -75,26 +79,7 @@ export function mapSupabaseState(payload: { students: SupabaseStudent[]; attenda
     isActive: true,
     sortOrder: index + 1,
   }));
-  state.students = payload.students.map((student) => ({
-    id: student.id,
-    fullName: student.name,
-    guardianName: student.guardian_name ?? '',
-    guardianPhone: student.guardian_phone ?? '',
-    batchId: student.group_id,
-    belt: student.belt_level ?? undefined,
-    admissionDate: student.admission_date ?? '',
-    monthlyFee: Number(student.monthly_fee ?? 0),
-    status: student.status ?? 'active',
-    currentAbsenceStreak: 0,
-    isDeleted: false,
-    createdAt: student.created_at ?? '',
-    updatedAt: student.created_at ?? '',
-    rollNo: student.roll_no,
-    sourceNote: student.source_note ?? undefined,
-    reviewNeeded: student.review_needed,
-    sourceImported: true,
-  }));
-
+  state.students = payload.students.map(mapSupabaseStudent);
   const sessionsByKey = new Map<string, SourceAttendanceSession>();
   const sessionById = new Map<string, SupabaseSession>();
   for (const row of payload.attendance) {
@@ -133,6 +118,39 @@ export function mapSupabaseState(payload: { students: SupabaseStudent[]; attenda
     }];
   });
   return state;
+}
+
+export function mapSupabaseStudent(student: SupabaseStudent): Student {
+  const profilePrefix = '@attendpro-profile:';
+  let fallback: Record<string, unknown> = {};
+  if (student.source_note?.startsWith(profilePrefix)) {
+    try {
+      fallback = JSON.parse(student.source_note.slice(profilePrefix.length)) as Record<string, unknown>;
+    } catch {
+      fallback = {};
+    }
+  }
+  return {
+    id: student.id,
+    fullName: student.name,
+    guardianName: student.guardian_name ?? String(fallback.guardianName ?? ''),
+    guardianPhone: student.guardian_phone ?? String(fallback.guardianPhone ?? ''),
+    batchId: student.group_id,
+    belt: student.belt_level ?? fallback.beltLevel as Student['belt'],
+    beltLevel: student.belt_level ?? fallback.beltLevel as Student['belt'],
+    admissionDate: student.admission_date ?? String(fallback.admissionDate ?? ''),
+    monthlyFee: Number(student.monthly_fee ?? fallback.monthlyFee ?? 0),
+    status: student.status ?? fallback.status as Student['status'] ?? 'active',
+    currentAbsenceStreak: 0,
+    isDeleted: student.is_deleted ?? false,
+    createdAt: student.created_at ?? '',
+    updatedAt: student.updated_at ?? student.created_at ?? '',
+    rollNo: student.roll_no,
+    sourceNote: student.source_note ?? undefined,
+    reviewNeeded: student.review_needed,
+    photoUrl: student.photo_url ?? (String(fallback.photoUrl ?? '') || undefined),
+    sourceImported: student.source_imported ?? !student.source_note?.startsWith(profilePrefix),
+  };
 }
 
 export function loadState(): AppState {

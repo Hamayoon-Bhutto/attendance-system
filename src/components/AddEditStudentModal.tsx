@@ -7,7 +7,7 @@ import { TAEKWONDO_BELTS } from '../lib/beltUtils';
 interface AddEditStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (studentData: Partial<Student>) => void;
+  onSave: (studentData: Partial<Student>) => Promise<void>;
   studentToEdit?: Student | null;
   batches: Batch[];
 }
@@ -36,7 +36,7 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
       setError('Student full name is required');
@@ -51,20 +51,24 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
       return;
     }
 
-    onSave({
-      ...(studentToEdit ? { id: studentToEdit.id } : {}),
-      fullName: fullName.trim(),
-      guardianName: guardianName.trim(),
-      guardianPhone: guardianPhone.trim(),
-      batchId,
-      beltLevel: beltLevel,
-      belt: beltLevel,
-      monthlyFee: Number(monthlyFee) || 0,
-      admissionDate,
-      photoUrl: photoUrl.trim() || undefined,
-      status,
-    });
-    onClose();
+    try {
+      await onSave({
+        ...(studentToEdit ? { id: studentToEdit.id } : {}),
+        fullName: fullName.trim(),
+        guardianName: guardianName.trim(),
+        guardianPhone: guardianPhone.trim(),
+        batchId,
+        beltLevel,
+        belt: beltLevel,
+        monthlyFee: Number(monthlyFee) || 0,
+        admissionDate,
+        photoUrl: photoUrl.trim() || undefined,
+        status,
+      });
+      onClose();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save the student to Supabase.');
+    }
   };
 
   return (

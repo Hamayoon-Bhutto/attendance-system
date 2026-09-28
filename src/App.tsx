@@ -4,6 +4,7 @@ import {
   createEmptyState,
   loadState,
   mapSupabaseState,
+  mapSupabaseStudent,
   saveState,
   readmitStudent,
   recordFeePayment,
@@ -168,7 +169,7 @@ export default function App() {
   };
 
   // Student operations
-  const handleSaveStudent = (studentData: Partial<Student>) => {
+  const handleSaveStudent = async (studentData: Partial<Student>) => {
     const currentState = loadState();
     let updatedStudents: Student[];
 
@@ -179,24 +180,17 @@ export default function App() {
       );
       showToast(`Updated student profile for ${studentData.fullName}!`, 'success');
     } else {
-      // Create new
-      const newStudent: Student = {
-        id: `stu-${Date.now()}`,
-        fullName: studentData.fullName || 'Unnamed Student',
-        guardianName: studentData.guardianName || '',
-        guardianPhone: studentData.guardianPhone || '',
-        batchId: studentData.batchId || currentState.batches[0]?.id || 'b1',
-        monthlyFee: studentData.monthlyFee || 150,
-        admissionDate: studentData.admissionDate || new Date().toISOString().substring(0, 10),
-        photoUrl: studentData.photoUrl,
-        status: studentData.status || 'active',
-        currentAbsenceStreak: 0,
-        isDeleted: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      const response = await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(studentData),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not save this student to Supabase.');
+      if (!result.student) throw new Error('Supabase did not return the saved student record.');
+      const newStudent = mapSupabaseStudent(result.student);
       updatedStudents = [...currentState.students, newStudent];
-      showToast(`Enrolled new student ${newStudent.fullName}!`, 'success');
+      showToast(`Saved ${newStudent.fullName} to Supabase!`, 'success');
     }
 
     const nextState = { ...currentState, students: updatedStudents };
