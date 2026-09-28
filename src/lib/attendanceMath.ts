@@ -169,7 +169,11 @@ export function computeMonthlyStats(
 
   // Calculate stats for each non-deleted student admitted on or before the month end
   const monthEndDate = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
-  const eligibleStudents = students.filter((s) => !s.isDeleted && s.admissionDate <= monthEndDate);
+  // Imported source-sheet students have session marks but no dates, so they
+  // must not receive fabricated daily absences or monthly rankings.
+  const eligibleStudents = students.filter(
+    (s) => !s.isDeleted && !s.sourceImported && s.admissionDate <= monthEndDate
+  );
 
   const stats: StudentMonthStats[] = eligibleStudents.map((student) => {
     const studentMap = studentRecordsMap.get(student.id) || new Map();
