@@ -304,21 +304,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   </div>
 
-                  {/* Theme Switcher within Dropdown */}
-                  <div className="pt-2 px-3 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      onClick={() => setDarkMode(!darkMode)}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                    >
-                      <span className="flex items-center space-x-2">
-                        {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-600" />}
-                        <span>Interface Theme</span>
-                      </span>
-                      <span className="text-xs font-bold text-sky-600 dark:text-sky-400">
-                        {darkMode ? 'Dark Mode' : 'Light Mode'}
-                      </span>
-                    </button>
-                  </div>
                 </div>
               )}
             </div>

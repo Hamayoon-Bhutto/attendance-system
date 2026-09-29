@@ -50,8 +50,19 @@ app.post('/api/students', async (req, res) => {
   if (!name || !groupId || !guardianPhone || !admissionDate || !['White', 'Yellow', 'Green', 'Blue', 'Red', 'Black'].includes(beltLevel) || !['active', 'suspended', 'left'].includes(status) || !Number.isFinite(Number(monthlyFee)) || Number(monthlyFee) < 0) {
     return res.status(400).json({ error: 'Please provide a valid name, group, guardian phone, belt, admission date, fee, and status.' });
   }
+  const phone = String(guardianPhone).trim();
+  const phoneDigits = phone.replace(/\D/g, '');
+  if (!/^\+?[0-9][0-9 ()-]{6,18}$/.test(phone) || phoneDigits.length < 8 || phoneDigits.length > 15) {
+    return res.status(400).json({ error: 'Enter a valid guardian phone number with 8 to 15 digits.' });
+  }
   const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' };
   try {
+    const duplicateResponse = await fetch(`${supabaseUrl}/rest/v1/students?select=id,name,guardian_phone,is_deleted&name=ilike.${encodeURIComponent(name)}&limit=1000`, { headers });
+    if (!duplicateResponse.ok && duplicateResponse.status !== 400) throw new Error(`Could not check for duplicate students (${duplicateResponse.status}).`);
+    const existingStudents = duplicateResponse.ok ? await duplicateResponse.json() as Array<{ name?: string; guardian_phone?: string; is_deleted?: boolean }> : [];
+    if (existingStudents.some((student) => !student.is_deleted && student.name?.trim().toLocaleLowerCase() === name.toLocaleLowerCase() && student.guardian_phone?.replace(/\D/g, '') === phoneDigits)) {
+      return res.status(409).json({ error: 'A student with this name and guardian phone number already exists.' });
+    }
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const rosterResponse = await fetch(`${supabaseUrl}/rest/v1/students?select=roll_no&group_id=eq.${encodeURIComponent(groupId)}`, { headers });
       if (!rosterResponse.ok) throw new Error(`Could not check the roster (${rosterResponse.status}).`);
@@ -60,7 +71,7 @@ app.post('/api/students', async (req, res) => {
       const insertResponse = await fetch(`${supabaseUrl}/rest/v1/students`, {
         method: 'POST',
         headers: { ...headers, Prefer: 'return=representation' },
-        body: JSON.stringify({ group_id: groupId, roll_no: rollNo, name, guardian_name: String(guardianName ?? '').trim(), guardian_phone: String(guardianPhone).trim(), belt_level: beltLevel, admission_date: admissionDate, monthly_fee: Number(monthlyFee), status, photo_url: photoUrl || null, source_imported: false, updated_at: new Date().toISOString() }),
+        body: JSON.stringify({ group_id: groupId, roll_no: rollNo, name, guardian_name: String(guardianName ?? '').trim(), guardian_phone: phone, belt_level: beltLevel, admission_date: admissionDate, monthly_fee: Number(monthlyFee), status, photo_url: photoUrl || null, source_imported: false, updated_at: new Date().toISOString() }),
       });
       let savedResponse = insertResponse;
       let insertDetail = '';
@@ -78,6 +89,7 @@ app.post('/api/students', async (req, res) => {
         return res.status(201).json({ student });
       }
       if (savedResponse.status === 409 && attempt < 4) continue;
+      if (savedResponse.status === 409 || /23505|already exists/i.test(insertDetail)) return res.status(409).json({ error: 'A student with this name and guardian phone number already exists.' });
       console.error('Supabase student insert failed:', savedResponse.status, insertDetail);
       return res.status(502).json({ error: `Supabase could not save this student (${savedResponse.status}).` });
     }

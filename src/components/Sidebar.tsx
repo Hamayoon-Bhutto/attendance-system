@@ -6,11 +6,9 @@ import {
   FileSpreadsheet,
   FileText,
   LayoutDashboard,
-  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Settings as SettingsIcon,
-  Sun,
   Users,
   Wallet,
   X
@@ -28,8 +26,6 @@ interface SidebarProps {
   setIsOpenMobile: (open: boolean) => void;
   isCollapsedDesktop: boolean;
   setIsCollapsedDesktop: (collapsed: boolean) => void;
-  darkMode: boolean;
-  setDarkMode: (val: boolean) => void;
   onExportAll: () => void;
 }
 
@@ -268,8 +264,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsOpenMobile,
   isCollapsedDesktop,
   setIsCollapsedDesktop,
-  darkMode,
-  setDarkMode,
   onExportAll,
 }) => {
   const drawerRef = useRef<HTMLElement>(null);
@@ -588,17 +582,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            {/* Dark mode button */}
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={`min-w-[44px] min-h-[44px] p-2.5 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer ${
-                isCollapsedDesktop ? 'lg:hidden' : 'block'
-              }`}
-              title={darkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-              aria-label="Toggle theme"
-            >
-              {darkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-sky-600" />}
-            </button>
           </div>
         </div>
       </aside>

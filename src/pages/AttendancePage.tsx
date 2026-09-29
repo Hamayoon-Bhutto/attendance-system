@@ -104,12 +104,13 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
   // Filter students by batch and search
   const filteredStudents = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
     return activeStudents.filter((student) => {
       if (selectedBatchId !== 'all' && student.batchId !== selectedBatchId) {
         return false;
       }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (query) {
+        const q = query;
         return (
           student.fullName.toLowerCase().includes(q) ||
           student.guardianName.toLowerCase().includes(q) ||
@@ -117,6 +118,14 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         );
       }
       return true;
+    }).sort((a, b) => {
+      const query = searchQuery.trim().toLocaleLowerCase();
+      if (!query) return 0;
+      const rank = (student: Student) => {
+        const name = student.fullName.toLocaleLowerCase();
+        return name === query ? 0 : name.startsWith(query) ? 1 : name.includes(query) ? 2 : 3;
+      };
+      return rank(a) - rank(b) || a.fullName.localeCompare(b.fullName);
     });
   }, [activeStudents, selectedBatchId, searchQuery]);
 

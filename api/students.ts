@@ -46,12 +46,30 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       send(res, 400, { error: 'Please provide a valid name, group, guardian phone, belt, admission date, fee, and status.' });
       return;
     }
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (!/^\+?[0-9][0-9 ()-]{6,18}$/.test(phone) || phoneDigits.length < 8 || phoneDigits.length > 15) {
+      send(res, 400, { error: 'Enter a valid guardian phone number with 8 to 15 digits.' });
+      return;
+    }
 
     const headers = {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
       'Content-Type': 'application/json',
     };
+
+    const duplicateResponse = await fetch(
+      `${supabaseUrl}/rest/v1/students?select=id,name,guardian_phone,is_deleted&name=ilike.${encodeURIComponent(name)}&limit=1000`,
+      { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+    );
+    if (!duplicateResponse.ok && duplicateResponse.status !== 400) throw new Error(`Could not check for duplicate students (${duplicateResponse.status}).`);
+    const existingStudents = duplicateResponse.ok ? await duplicateResponse.json() as Array<{ name?: string; guardian_phone?: string; is_deleted?: boolean }> : [];
+    if (existingStudents.some((student) => !student.is_deleted
+      && student.name?.trim().toLocaleLowerCase() === name.toLocaleLowerCase()
+      && student.guardian_phone?.replace(/\D/g, '') === phoneDigits)) {
+      send(res, 409, { error: 'A student with this name and guardian phone number already exists.' });
+      return;
+    }
 
     // Roll numbers are allocated from the current group's roster. Retry a conflict
     // so two registrations submitted at the same time do not lose either student.
@@ -106,6 +124,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return;
       }
       if (savedResponse.status === 409 && attempt < 4) continue;
+      if (savedResponse.status === 409 || /23505|already exists/i.test(insertDetail)) {
+        send(res, 409, { error: 'A student with this name and guardian phone number already exists.' });
+        return;
+      }
       if (savedResponse.status === 400 && /column .* does not exist|schema cache/i.test(insertDetail)) {
         send(res, 503, { error: 'The Supabase student profile migration has not been applied yet. Apply supabase/migrations/202609290001_student_profiles.sql in the Supabase SQL Editor, then retry.' });
         return;

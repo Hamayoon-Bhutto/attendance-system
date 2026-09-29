@@ -172,7 +172,7 @@ export function computeMonthlyStats(
   // Imported source-sheet students have session marks but no dates, so they
   // must not receive fabricated daily absences or monthly rankings.
   const eligibleStudents = students.filter(
-    (s) => !s.isDeleted && !s.sourceImported && s.admissionDate <= monthEndDate
+    (s) => !s.isDeleted && (!s.admissionDate || s.admissionDate <= monthEndDate)
   );
 
   const stats: StudentMonthStats[] = eligibleStudents.map((student) => {

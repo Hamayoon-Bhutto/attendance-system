@@ -98,6 +98,21 @@ export default function App() {
       .then((payload) => {
         if (!active) return;
         const remoteState = mapSupabaseState(payload);
+        // Attendance marks and fee records are currently app-managed locally;
+        // keep them when the Supabase roster refreshes instead of wiping them.
+        const cachedState = loadState();
+        remoteState.attendance = [
+          ...remoteState.attendance.filter((remote) => !cachedState.attendance.some(
+            (cached) => cached.studentId === remote.studentId && cached.attendanceDate === remote.attendanceDate
+          )),
+          ...cachedState.attendance,
+        ];
+        remoteState.feeRecords = cachedState.feeRecords;
+        remoteState.monthlyReports = cachedState.monthlyReports;
+        remoteState.suspensions = cachedState.suspensions;
+        remoteState.activityLogs = cachedState.activityLogs;
+        remoteState.holidays = cachedState.holidays;
+        remoteState.settings = cachedState.settings;
         saveState(remoteState);
         setState(remoteState);
         setDataReady(true);
@@ -309,8 +324,6 @@ export default function App() {
         setIsCollapsedDesktop={setIsSidebarCollapsed}
         isCollapsedMobile={isSidebarCollapsedMobile}
         setIsCollapsedMobile={setIsSidebarCollapsedMobile}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
         onExportAll={handleExportAll}
       />
 

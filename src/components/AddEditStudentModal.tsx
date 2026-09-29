@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Batch, Student, TaekwondoBelt } from '../types';
 import { X, User, Phone, Calendar, Layers, Award } from 'lucide-react';
 import { formatDateKey } from '../lib/attendanceMath';
@@ -33,17 +33,33 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
   const [photoUrl, setPhotoUrl] = useState(studentToEdit?.photoUrl || '');
   const [status, setStatus] = useState<'active' | 'suspended' | 'left'>(studentToEdit ? studentToEdit.status : 'active');
   const [error, setError] = useState('');
+  const phoneDigits = guardianPhone.replace(/\D/g, '');
+  const phoneIsValid = /^\+?[0-9][0-9 ()-]{6,18}$/.test(guardianPhone.trim()) && phoneDigits.length >= 8 && phoneDigits.length <= 15;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFullName(studentToEdit?.fullName || '');
+    setGuardianName(studentToEdit?.guardianName || '');
+    setGuardianPhone(studentToEdit?.guardianPhone || '');
+    setBatchId(studentToEdit?.batchId || batches[0]?.id || '');
+    setBeltLevel(studentToEdit?.beltLevel || studentToEdit?.belt || 'White');
+    setMonthlyFee(studentToEdit?.monthlyFee ?? 4000);
+    setAdmissionDate(studentToEdit?.admissionDate || formatDateKey(new Date()));
+    setPhotoUrl(studentToEdit?.photoUrl || '');
+    setStatus(studentToEdit?.status || 'active');
+    setError('');
+  }, [isOpen, studentToEdit, batches]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim()) {
-      setError('Student full name is required');
+    if (!fullName.trim() || !batchId || !admissionDate || !Number.isFinite(Number(monthlyFee)) || Number(monthlyFee) < 0) {
+      setError('Complete the highlighted required fields with valid values.');
       return;
     }
-    if (!guardianPhone.trim()) {
-      setError('Guardian WhatsApp/phone number is required');
+    if (!phoneIsValid) {
+      setError('Enter a valid phone number with 8 to 15 digits.');
       return;
     }
     if (!beltLevel) {
@@ -138,10 +154,13 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
                   required
                   placeholder="+92 300 1234567"
                   value={guardianPhone}
+                  maxLength={20}
+                  aria-invalid={guardianPhone.length > 0 && !phoneIsValid}
                   onChange={(e) => setGuardianPhone(e.target.value)}
                   className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                 />
               </div>
+              {guardianPhone.length > 0 && !phoneIsValid && <p className="mt-1 text-xs text-red-600">Enter 8 to 15 digits, optionally with a country code.</p>}
             </div>
           </div>
 
