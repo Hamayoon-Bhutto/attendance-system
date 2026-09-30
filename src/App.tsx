@@ -189,10 +189,16 @@ export default function App() {
     let updatedStudents: Student[];
 
     if (studentData.id) {
-      // Edit existing
-      updatedStudents = currentState.students.map((s) =>
-        s.id === studentData.id ? ({ ...s, ...studentData } as Student) : s
-      );
+      const response = await fetch('/api/students', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(studentData),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not update this student in Supabase.');
+      if (!result.student) throw new Error('Supabase did not return the updated student record.');
+      const savedStudent = mapSupabaseStudent(result.student);
+      updatedStudents = currentState.students.map((s) => s.id === studentData.id ? savedStudent : s);
       showToast(`Updated student profile for ${studentData.fullName}!`, 'success');
     } else {
       const response = await fetch('/api/students', {

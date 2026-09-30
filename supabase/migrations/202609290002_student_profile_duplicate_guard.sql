@@ -5,6 +5,14 @@ returns trigger
 language plpgsql
 as $$
 begin
+  if coalesce(new.guardian_phone, '') <> '' then
+    -- Serialize checks for the same normalized student and phone so concurrent
+    -- registrations cannot both pass the check and insert duplicate rows.
+    perform pg_advisory_xact_lock(hashtextextended(
+      lower(trim(new.name)) || ':' || regexp_replace(new.guardian_phone, '[^0-9]', '', 'g'), 0
+    ));
+  end if;
+
   if coalesce(new.guardian_phone, '') <> '' and exists (
     select 1
     from public.students existing

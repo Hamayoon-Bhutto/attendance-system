@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { DUPLICATE_STUDENT_ERROR, GUARDIAN_PHONE_ERROR, isValidGuardianPhone } from '../src/lib/studentValidation';
 
 type ApiRequest = IncomingMessage & { method?: string; body?: unknown };
 type ApiResponse = ServerResponse<IncomingMessage>;
@@ -19,8 +20,8 @@ async function readBody(req: ApiRequest): Promise<Record<string, unknown>> {
 }
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+  if (req.method !== 'POST' && req.method !== 'PUT') {
+    res.setHeader('Allow', 'POST, PUT');
     send(res, 405, { error: 'Method not allowed.' });
     return;
   }
@@ -34,6 +35,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
   try {
     const body = await readBody(req);
+    const editingId = req.method === 'PUT' && typeof body.id === 'string' ? body.id : null;
+    if (req.method === 'PUT' && !editingId) {
+      send(res, 400, { error: 'A student ID is required to update a profile.' });
+      return;
+    }
     const name = typeof body.fullName === 'string' ? body.fullName.trim() : '';
     const groupId = typeof body.batchId === 'string' ? body.batchId.replace(/^Group\s+/i, '').trim() : '';
     const belt = typeof body.beltLevel === 'string' ? body.beltLevel : '';
@@ -46,11 +52,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       send(res, 400, { error: 'Please provide a valid name, group, guardian phone, belt, admission date, fee, and status.' });
       return;
     }
-    const phoneDigits = phone.replace(/\D/g, '');
-    if (!/^\+?[0-9][0-9 ()-]{6,18}$/.test(phone) || phoneDigits.length < 8 || phoneDigits.length > 15) {
-      send(res, 400, { error: 'Enter a valid guardian phone number with 8 to 15 digits.' });
+    if (!isValidGuardianPhone(phone)) {
+      send(res, 400, { error: GUARDIAN_PHONE_ERROR });
       return;
     }
+    const phoneDigits = phone.replace(/\D/g, '');
 
     const headers = {
       apikey: serviceRoleKey,
@@ -63,11 +69,47 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
     );
     if (!duplicateResponse.ok && duplicateResponse.status !== 400) throw new Error(`Could not check for duplicate students (${duplicateResponse.status}).`);
-    const existingStudents = duplicateResponse.ok ? await duplicateResponse.json() as Array<{ name?: string; guardian_phone?: string; is_deleted?: boolean }> : [];
-    if (existingStudents.some((student) => !student.is_deleted
+    const existingStudents = duplicateResponse.ok ? await duplicateResponse.json() as Array<{ id?: string; name?: string; guardian_phone?: string; is_deleted?: boolean }> : [];
+    if (existingStudents.some((student) => student.id !== editingId && !student.is_deleted
       && student.name?.trim().toLocaleLowerCase() === name.toLocaleLowerCase()
       && student.guardian_phone?.replace(/\D/g, '') === phoneDigits)) {
-      send(res, 409, { error: 'A student with this name and guardian phone number already exists.' });
+      send(res, 409, { error: DUPLICATE_STUDENT_ERROR });
+      return;
+    }
+
+    if (editingId) {
+      const updateResponse = await fetch(`${supabaseUrl}/rest/v1/students?id=eq.${encodeURIComponent(editingId)}&select=*`, {
+        method: 'PATCH',
+        headers: { ...headers, Prefer: 'return=representation' },
+        body: JSON.stringify({
+          name,
+          group_id: groupId,
+          guardian_name: typeof body.guardianName === 'string' ? body.guardianName.trim() : '',
+          guardian_phone: phone,
+          belt_level: belt,
+          admission_date: admissionDate,
+          monthly_fee: monthlyFee,
+          status,
+          photo_url: typeof body.photoUrl === 'string' ? body.photoUrl : null,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      if (!updateResponse.ok) {
+        const detail = await updateResponse.text();
+        if (updateResponse.status === 409 || /23505|already exists/i.test(detail)) {
+          send(res, 409, { error: DUPLICATE_STUDENT_ERROR });
+          return;
+        }
+        console.error('Supabase student update failed:', updateResponse.status, detail);
+        send(res, 502, { error: `Supabase could not update this student (${updateResponse.status}).` });
+        return;
+      }
+      const [student] = await updateResponse.json() as Array<Record<string, unknown>>;
+      if (!student) {
+        send(res, 404, { error: 'Student not found.' });
+        return;
+      }
+      send(res, 200, { student });
       return;
     }
 
@@ -125,7 +167,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       }
       if (savedResponse.status === 409 && attempt < 4) continue;
       if (savedResponse.status === 409 || /23505|already exists/i.test(insertDetail)) {
-        send(res, 409, { error: 'A student with this name and guardian phone number already exists.' });
+        send(res, 409, { error: DUPLICATE_STUDENT_ERROR });
         return;
       }
       if (savedResponse.status === 400 && /column .* does not exist|schema cache/i.test(insertDetail)) {

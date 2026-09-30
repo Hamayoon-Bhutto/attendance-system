@@ -3,6 +3,7 @@ import { Batch, Student, TaekwondoBelt } from '../types';
 import { X, User, Phone, Calendar, Layers, Award } from 'lucide-react';
 import { formatDateKey } from '../lib/attendanceMath';
 import { TAEKWONDO_BELTS } from '../lib/beltUtils';
+import { GUARDIAN_PHONE_ERROR, isValidGuardianPhone } from '../lib/studentValidation';
 
 interface AddEditStudentModalProps {
   isOpen: boolean;
@@ -33,8 +34,7 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
   const [photoUrl, setPhotoUrl] = useState(studentToEdit?.photoUrl || '');
   const [status, setStatus] = useState<'active' | 'suspended' | 'left'>(studentToEdit ? studentToEdit.status : 'active');
   const [error, setError] = useState('');
-  const phoneDigits = guardianPhone.replace(/\D/g, '');
-  const phoneIsValid = /^\+?[0-9][0-9 ()-]{6,18}$/.test(guardianPhone.trim()) && phoneDigits.length >= 8 && phoneDigits.length <= 15;
+  const phoneIsValid = isValidGuardianPhone(guardianPhone);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -59,7 +59,7 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
       return;
     }
     if (!phoneIsValid) {
-      setError('Enter a valid phone number with 8 to 15 digits.');
+      setError(GUARDIAN_PHONE_ERROR);
       return;
     }
     if (!beltLevel) {
@@ -154,13 +154,15 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
                   required
                   placeholder="+92 300 1234567"
                   value={guardianPhone}
-                  maxLength={20}
+                  maxLength={18}
+                  autoComplete="tel"
+                  aria-describedby="guardian-phone-error"
                   aria-invalid={guardianPhone.length > 0 && !phoneIsValid}
                   onChange={(e) => setGuardianPhone(e.target.value)}
                   className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                 />
               </div>
-              {guardianPhone.length > 0 && !phoneIsValid && <p className="mt-1 text-xs text-red-600">Enter 8 to 15 digits, optionally with a country code.</p>}
+              {guardianPhone.length > 0 && !phoneIsValid && <p id="guardian-phone-error" className="mt-1 text-xs text-red-600">{GUARDIAN_PHONE_ERROR}</p>}
             </div>
           </div>
 

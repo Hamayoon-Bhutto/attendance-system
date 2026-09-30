@@ -128,13 +128,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
         {/* Top Header Profile Banner */}
         <div className="relative p-5 sm:p-6 bg-linear-to-r from-sky-800 via-sky-900 to-slate-950 text-white">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center space-x-4">
               <div className="w-16 h-16 rounded-2xl bg-white/10 border-2 border-white/20 flex items-center justify-center text-2xl font-black text-amber-400 overflow-hidden shadow-inner shrink-0">
@@ -185,7 +178,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
             </div>
 
             {/* Quick Action Buttons */}
-            <div className="flex items-center space-x-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <a
                 href={whatsappUrl}
                 target="_blank"
@@ -206,9 +199,18 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
               <button
                 onClick={() => onEditStudent(student)}
                 title="Edit Student"
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                aria-label="Edit student"
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
               >
                 <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onClose}
+                title="Close student details"
+                aria-label="Close student details"
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>

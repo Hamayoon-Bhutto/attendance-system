@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import { DUPLICATE_STUDENT_ERROR, GUARDIAN_PHONE_ERROR, isValidGuardianPhone } from './src/lib/studentValidation';
 
 dotenv.config();
 
@@ -38,30 +39,48 @@ app.get('/api/dashboard-data', async (_req, res) => {
   }
 });
 
-app.post('/api/students', async (req, res) => {
+const saveStudentHandler: express.RequestHandler = async (req, res) => {
   const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
     return res.status(503).json({ error: 'Supabase server configuration is missing.' });
   }
   const { fullName, guardianName, guardianPhone, batchId, beltLevel, monthlyFee, admissionDate, photoUrl, status } = req.body ?? {};
+  const editingId = req.method === 'PUT' && typeof req.body?.id === 'string' ? req.body.id : null;
+  if (req.method === 'PUT' && !editingId) return res.status(400).json({ error: 'A student ID is required to update a profile.' });
   const name = typeof fullName === 'string' ? fullName.trim() : '';
   const groupId = typeof batchId === 'string' ? batchId.replace(/^Group\s+/i, '').trim() : '';
   if (!name || !groupId || !guardianPhone || !admissionDate || !['White', 'Yellow', 'Green', 'Blue', 'Red', 'Black'].includes(beltLevel) || !['active', 'suspended', 'left'].includes(status) || !Number.isFinite(Number(monthlyFee)) || Number(monthlyFee) < 0) {
     return res.status(400).json({ error: 'Please provide a valid name, group, guardian phone, belt, admission date, fee, and status.' });
   }
   const phone = String(guardianPhone).trim();
-  const phoneDigits = phone.replace(/\D/g, '');
-  if (!/^\+?[0-9][0-9 ()-]{6,18}$/.test(phone) || phoneDigits.length < 8 || phoneDigits.length > 15) {
-    return res.status(400).json({ error: 'Enter a valid guardian phone number with 8 to 15 digits.' });
+  if (!isValidGuardianPhone(phone)) {
+    return res.status(400).json({ error: GUARDIAN_PHONE_ERROR });
   }
+  const phoneDigits = phone.replace(/\D/g, '');
   const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' };
   try {
     const duplicateResponse = await fetch(`${supabaseUrl}/rest/v1/students?select=id,name,guardian_phone,is_deleted&name=ilike.${encodeURIComponent(name)}&limit=1000`, { headers });
     if (!duplicateResponse.ok && duplicateResponse.status !== 400) throw new Error(`Could not check for duplicate students (${duplicateResponse.status}).`);
-    const existingStudents = duplicateResponse.ok ? await duplicateResponse.json() as Array<{ name?: string; guardian_phone?: string; is_deleted?: boolean }> : [];
-    if (existingStudents.some((student) => !student.is_deleted && student.name?.trim().toLocaleLowerCase() === name.toLocaleLowerCase() && student.guardian_phone?.replace(/\D/g, '') === phoneDigits)) {
-      return res.status(409).json({ error: 'A student with this name and guardian phone number already exists.' });
+    const existingStudents = duplicateResponse.ok ? await duplicateResponse.json() as Array<{ id?: string; name?: string; guardian_phone?: string; is_deleted?: boolean }> : [];
+    if (existingStudents.some((student) => student.id !== editingId && !student.is_deleted && student.name?.trim().toLocaleLowerCase() === name.toLocaleLowerCase() && student.guardian_phone?.replace(/\D/g, '') === phoneDigits)) {
+      return res.status(409).json({ error: DUPLICATE_STUDENT_ERROR });
+    }
+    if (editingId) {
+      const updateResponse = await fetch(`${supabaseUrl}/rest/v1/students?id=eq.${encodeURIComponent(editingId)}&select=*`, {
+        method: 'PATCH',
+        headers: { ...headers, Prefer: 'return=representation' },
+        body: JSON.stringify({ name, group_id: groupId, guardian_name: String(guardianName ?? '').trim(), guardian_phone: phone, belt_level: beltLevel, admission_date: admissionDate, monthly_fee: Number(monthlyFee), status, photo_url: photoUrl || null, updated_at: new Date().toISOString() }),
+      });
+      if (!updateResponse.ok) {
+        const detail = await updateResponse.text();
+        if (updateResponse.status === 409 || /23505|already exists/i.test(detail)) return res.status(409).json({ error: DUPLICATE_STUDENT_ERROR });
+        console.error('Supabase student update failed:', updateResponse.status, detail);
+        return res.status(502).json({ error: `Supabase could not update this student (${updateResponse.status}).` });
+      }
+      const [student] = await updateResponse.json() as Array<Record<string, unknown>>;
+      if (!student) return res.status(404).json({ error: 'Student not found.' });
+      return res.json({ student });
     }
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const rosterResponse = await fetch(`${supabaseUrl}/rest/v1/students?select=roll_no&group_id=eq.${encodeURIComponent(groupId)}`, { headers });
@@ -89,7 +108,7 @@ app.post('/api/students', async (req, res) => {
         return res.status(201).json({ student });
       }
       if (savedResponse.status === 409 && attempt < 4) continue;
-      if (savedResponse.status === 409 || /23505|already exists/i.test(insertDetail)) return res.status(409).json({ error: 'A student with this name and guardian phone number already exists.' });
+      if (savedResponse.status === 409 || /23505|already exists/i.test(insertDetail)) return res.status(409).json({ error: DUPLICATE_STUDENT_ERROR });
       console.error('Supabase student insert failed:', savedResponse.status, insertDetail);
       return res.status(502).json({ error: `Supabase could not save this student (${savedResponse.status}).` });
     }
@@ -98,7 +117,10 @@ app.post('/api/students', async (req, res) => {
     console.error('Failed to save student to Supabase:', error);
     return res.status(500).json({ error: 'Could not save the student to Supabase.' });
   }
-});
+};
+
+app.post('/api/students', saveStudentHandler);
+app.put('/api/students', saveStudentHandler);
 
 // Lazy initialization of Gemini client
 let aiClient: GoogleGenAI | null = null;
