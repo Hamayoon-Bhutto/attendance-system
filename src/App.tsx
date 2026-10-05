@@ -101,16 +101,22 @@ export default function App() {
         // Attendance marks and fee records are currently app-managed locally;
         // keep them when the Supabase roster refreshes instead of wiping them.
         const cachedState = loadState();
+        // Supabase is the roster of record: drop cached rows for students that
+        // were removed there so they stop appearing anywhere in the dashboard.
+        const rosterIds = new Set(remoteState.students.map((student) => student.id));
+        const onRoster = (record: { studentId: string }) => rosterIds.has(record.studentId);
         remoteState.attendance = [
           ...remoteState.attendance.filter((remote) => !cachedState.attendance.some(
             (cached) => cached.studentId === remote.studentId && cached.attendanceDate === remote.attendanceDate
           )),
-          ...cachedState.attendance,
+          ...cachedState.attendance.filter(onRoster),
         ];
-        remoteState.feeRecords = cachedState.feeRecords;
-        remoteState.monthlyReports = cachedState.monthlyReports;
-        remoteState.suspensions = cachedState.suspensions;
-        remoteState.activityLogs = cachedState.activityLogs;
+        remoteState.feeRecords = cachedState.feeRecords.filter(onRoster);
+        remoteState.monthlyReports = cachedState.monthlyReports.filter(onRoster);
+        remoteState.suspensions = cachedState.suspensions.filter(onRoster);
+        remoteState.activityLogs = cachedState.activityLogs.filter(
+          (log) => log.entity !== 'student' || !log.entityId || rosterIds.has(log.entityId)
+        );
         remoteState.holidays = cachedState.holidays;
         remoteState.settings = cachedState.settings;
         saveState(remoteState);
