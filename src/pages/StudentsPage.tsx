@@ -502,7 +502,7 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
                 {/* Card Top: Photo & Badges */}
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div
-                    className="flex items-center space-x-3 cursor-pointer group"
+                    className="flex items-center space-x-3 cursor-pointer group min-w-0"
                     onClick={() => onSelectStudent(student.id)}
                   >
                     <div className="w-12 h-12 rounded-xl bg-sky-50 dark:bg-slate-800 flex items-center justify-center font-black text-sm text-sky-700 dark:text-sky-400 shrink-0 border border-sky-200 dark:border-slate-700 overflow-hidden group-hover:scale-105 transition-transform">
@@ -512,7 +512,7 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
                         student.fullName.substring(0, 2).toUpperCase()
                       )}
                     </div>
-                    <div>
+                    <div className="min-w-0 break-words">
                       <h3 className="font-bold text-sm text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                         {student.fullName}
                       </h3>
@@ -550,7 +550,7 @@ export const StudentsPage: React.FC<StudentsPageProps> = ({
                 </div>
 
                 {/* Details list */}
-                <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 py-2 border-t border-sky-50 dark:border-slate-800">
+                <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 py-2 border-t border-sky-50 dark:border-slate-800 min-w-0 break-words [overflow-wrap:anywhere]">
                   {student.sourceImported ? <>
                     <div className="flex justify-between"><span className="text-slate-400">Group:</span><span className="font-semibold">{student.batchId}</span></div>
                     <div className="flex justify-between"><span className="text-slate-400">Roll number:</span><span className="font-semibold">{student.rollNo}</span></div>

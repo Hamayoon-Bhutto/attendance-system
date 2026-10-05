@@ -122,8 +122,9 @@ export function mapSupabaseState(payload: { students: SupabaseStudent[]; attenda
 
 export function mapSupabaseStudent(student: SupabaseStudent): Student {
   const profilePrefix = '@attendpro-profile:';
+  const hasProfileNote = Boolean(student.source_note?.startsWith(profilePrefix));
   let fallback: Record<string, unknown> = {};
-  if (student.source_note?.startsWith(profilePrefix)) {
+  if (student.source_note && hasProfileNote) {
     try {
       fallback = JSON.parse(student.source_note.slice(profilePrefix.length)) as Record<string, unknown>;
     } catch {
@@ -133,23 +134,25 @@ export function mapSupabaseStudent(student: SupabaseStudent): Student {
   return {
     id: student.id,
     fullName: student.name,
-    guardianName: student.guardian_name ?? String(fallback.guardianName ?? ''),
-    guardianPhone: student.guardian_phone ?? String(fallback.guardianPhone ?? ''),
+    // Profile columns default to '' / 0 after the migration, so fall back to the
+    // legacy note whenever the column is still empty.
+    guardianName: student.guardian_name || String(fallback.guardianName ?? ''),
+    guardianPhone: student.guardian_phone || String(fallback.guardianPhone ?? ''),
     batchId: student.group_id,
     belt: student.belt_level ?? fallback.beltLevel as Student['belt'],
     beltLevel: student.belt_level ?? fallback.beltLevel as Student['belt'],
     admissionDate: student.admission_date ?? String(fallback.admissionDate ?? ''),
-    monthlyFee: Number(student.monthly_fee ?? fallback.monthlyFee ?? 0),
+    monthlyFee: Number(student.monthly_fee) || Number(fallback.monthlyFee) || 0,
     status: student.status ?? fallback.status as Student['status'] ?? 'active',
     currentAbsenceStreak: 0,
     isDeleted: student.is_deleted ?? false,
     createdAt: student.created_at ?? '',
     updatedAt: student.updated_at ?? student.created_at ?? '',
     rollNo: student.roll_no,
-    sourceNote: student.source_note ?? undefined,
+    sourceNote: hasProfileNote ? undefined : student.source_note ?? undefined,
     reviewNeeded: student.review_needed,
     photoUrl: student.photo_url ?? (String(fallback.photoUrl ?? '') || undefined),
-    sourceImported: student.source_imported ?? !student.source_note?.startsWith(profilePrefix),
+    sourceImported: hasProfileNote ? false : student.source_imported ?? true,
   };
 }
 
