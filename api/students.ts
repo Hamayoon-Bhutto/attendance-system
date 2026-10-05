@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { DUPLICATE_STUDENT_ERROR, GUARDIAN_PHONE_ERROR, isValidGuardianPhone } from '../src/lib/studentValidation';
+import { DUPLICATE_STUDENT_ERROR, GUARDIAN_PHONE_ERROR, isValidGuardianPhone } from '../src/lib/studentValidation.js';
 
 type ApiRequest = IncomingMessage & { method?: string; body?: unknown };
 type ApiResponse = ServerResponse<IncomingMessage>;
